@@ -2,14 +2,23 @@ import requests
 import json
 from fake_useragent import UserAgent
 import time
-import telebot
+from aiogram import Bot, Dispatcher, executor, types
+from aiogram.dispatcher.filters import Text
+import asyncio
+import os
+
+
 
 
 
 today = time.time()
 dt = time.strftime('%Y-%m-%d_%H.%M', time.localtime(today))
 ua = UserAgent()
-token = '5429272897:AAEambLvd2TsehQxfX5DoyKIXYLa_yS1TZc'
+path = os.path.join(os.path.abspath(os.path.dirname(__file__)), f'result_for_{dt}.json')
+
+bot = Bot(token='5429272897:AAEambLvd2TsehQxfX5DoyKIXYLa_yS1TZc', parse_mode=types.ParseMode.HTML)
+dp = Dispatcher(bot)
+
 
 
 def get_data():
@@ -76,36 +85,21 @@ def get_data():
     return f'result_for_{dt}.json'
 
 
-def telegram_bot(token):
-    bot = telebot.TeleBot(token)
+@dp.message_handler(commands='start')
+async def start(message: types.Message):
+    start_buttons = 'Get data'
+    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    keyboard.add(start_buttons)
+    await message.answer('Press Get data!', reply_markup=keyboard)
 
-    @bot.message_handler(commands=['start'])
-    def start_message(message):
-        keyboard = telebot.types.ReplyKeyboardMarkup(True)
-        keyboard.row('Get data', 'Newsletter')
-        bot.send_message(message.chat.id, 'Make a choice!', reply_markup=keyboard)
-
-    @bot.message_handler(content_types=["text"])
-    def send_text(message):
-        if message.text == 'Get data':
-            bot.send_document(message.chat.id, open(get_data()))
-        elif message.text == 'Newsletter':
-            bot.send_message(message.chat.id, 'Enter the interval (an integer number) of minutes at which you want to receive data')
-            @bot.message_handler(content_types=['text'])
-            def message_input_step(message):
-                global interval
-                interval = message.text
-                while True:
-                    bot.send_document(message.chat.id, open(get_data(), 'rb'))
-                    time.sleep(int(interval)*60)
-
-            bot.register_next_step_handler(message, message_input_step)
-    bot.polling()
+@dp.message_handler(Text(equals='Get data'))
+async def get_one_shot(message: types.Message):
+    await message.reply_document(open(get_data(), 'rb'))
+    os.remove(path)
 
 
 def main():
-    telegram_bot(token)
-
+    executor.start_polling(dp)
 
 if __name__ == '__main__':
     main()
